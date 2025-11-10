@@ -68,7 +68,7 @@ async fn main() {
         .nest("/map/v2", protected)
         .with_state(state)
         .layer(cors)
-        .layer(GovernorLayer::new(governor_conf));
+        .layer(GovernorLayer { config: Box::leak(Box::new(governor_conf)) });
 
     info!("Server listening on {}", bind_addr);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();

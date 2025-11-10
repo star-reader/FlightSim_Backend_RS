@@ -1,6 +1,6 @@
-use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
 
-pub fn governor_config() -> impl Clone {
+pub fn governor_config() -> GovernorConfig {
     GovernorConfigBuilder::default()
         .per_second(1)
         .burst_size(100)
