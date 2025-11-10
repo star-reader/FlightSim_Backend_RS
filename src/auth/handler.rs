@@ -12,7 +12,6 @@ use ring::signature::{RSA_PSS_2048_8192_SHA256, UnparsedPublicKey};
 use crate::api::types::ApiErr;
 use crate::state::AppState;
 
-// 鉴权中间件：验证 RSA-PSS 签名（path|id|timestamp）
 pub async fn authorize(
     State(state): State<AppState>,
     req: axum::http::Request<axum::body::Body>,
@@ -20,7 +19,7 @@ pub async fn authorize(
 ) -> Result<axum::response::Response, axum::response::Response> {
     let headers = req.headers();
     let path = req.uri().path().to_string();
-
+    //path|id|timestamp
     match verify_request(&state, &path, headers) {
         Ok(_) => Ok(next.run(req).await),
         Err((status, msg)) => {

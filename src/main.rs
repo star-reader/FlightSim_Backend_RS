@@ -58,7 +58,8 @@ async fn main() {
     let poll_state = state.clone();
     let _poll_handle = polling::task::spawn_polling(poll_state);
 
-    let protected = api::routes().layer(axum::middleware::from_fn(auth::handler::authorize));
+    let protected = api::routes()
+        .layer(axum::middleware::from_fn_with_state(state.clone(), auth::handler::authorize));
     let cors = middleware::cors::cors_layer();
     let governor_conf = middleware::ratelimit::governor_config();
 
@@ -67,11 +68,11 @@ async fn main() {
         .nest("/map/v2", protected)
         .with_state(state)
         .layer(cors)
-        .layer(GovernorLayer::new(&governor_conf));
+        .layer(GovernorLayer::new(governor_conf));
 
     info!("Server listening on {}", bind_addr);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
-    if let Err(e) = axum::serve(listener, app).await {
+    if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await {
         error!("server error: {}", e);
     }
 }
