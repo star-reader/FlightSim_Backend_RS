@@ -25,3 +25,5 @@ target
 .runtime_test/*
 
 .env
+
+.DS_Store
