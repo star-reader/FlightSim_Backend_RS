@@ -61,14 +61,13 @@ async fn main() {
     let protected = api::routes()
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth::handler::authorize));
     let cors = middleware::cors::cors_layer();
-    let governor_conf = middleware::ratelimit::governor_config();
 
     let app = Router::new()
         .route("/api/health", get(health))
         .nest("/map/v2", protected)
         .with_state(state)
         .layer(cors)
-        .layer(GovernorLayer { config: Box::leak(Box::new(governor_conf)) });
+        .layer(middleware::ratelimit::layer());
 
     info!("Server listening on {}", bind_addr);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();

@@ -1,9 +1,15 @@
-use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::GovernorLayer;
+use tower_governor::key_extractor::PeerIpKeyExtractor;
+use governor::middleware::NoOpMiddleware;
 
-pub fn governor_config() -> GovernorConfig {
-    GovernorConfigBuilder::default()
-        .per_second(1)
-        .burst_size(100)
-        .finish()
-        .expect("构建 GovernorConfig 失败")
+pub fn layer() -> GovernorLayer<PeerIpKeyExtractor, NoOpMiddleware> {
+    let cfg = Box::new(
+        GovernorConfigBuilder::default()
+            .per_second(1)
+            .burst_size(100)
+            .finish()
+            .expect("构建 GovernorConfig 失败"),
+    );
+    GovernorLayer { config: Box::leak(cfg) }
 }
