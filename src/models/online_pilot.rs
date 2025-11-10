@@ -18,9 +18,3 @@ pub struct OnlinePilot {
     pub pitch: i64,
     pub flight_plan: Option<FlightPlan>,
 }
-
-impl OnlinePilot {
-    pub fn cid(&self) -> &str { &self.base.cid }
-    pub fn session_id(&self) -> &str { &self.base.session_id }
-    pub fn callsign(&self) -> &str { &self.base.callsign }
-}

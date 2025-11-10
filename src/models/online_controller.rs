@@ -13,8 +13,3 @@ pub struct OnlineController {
     pub visual_range: i32,
     pub text_atis: Vec<String>,
 }
-
-impl OnlineController {
-    pub fn cid(&self) -> &str { &self.base.cid }
-    pub fn session_id(&self) -> &str { &self.base.session_id }
-}

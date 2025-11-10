@@ -3,7 +3,6 @@ use std::{net::SocketAddr, sync::Arc};
 use axum::{Router, routing::get};
 use dotenvy::dotenv;
 use pem::parse as pem_parse;
-use tower_governor::GovernorLayer;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt};
 
