@@ -7,6 +7,8 @@ pub async fn update_cache(cache: &Arc<tokio::sync::RwLock<OnlineData>>, data: On
     *guard = data;
 }
 
-pub async fn get_cache(cache: &Arc<tokio::sync::RwLock<OnlineData>>) -> OnlineData {
-    cache.read().await.clone()
-}
+// bugfix/ Jerry 还没用
+// `#[warn(dead_code)]` on by default
+// pub async fn get_cache(cache: &Arc<tokio::sync::RwLock<OnlineData>>) -> OnlineData {
+//     cache.read().await.clone()
+// }
