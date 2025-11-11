@@ -62,7 +62,7 @@ async fn main() {
     let cors = middleware::cors::cors_layer();
 
     let app = Router::new()
-        .route("/api/health", get(health))
+        .route("/map/v2/health", get(health))
         .nest("/map/v2", protected)
         .with_state(state)
         .layer(cors)
