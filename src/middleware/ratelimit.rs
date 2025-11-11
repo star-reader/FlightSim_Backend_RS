@@ -7,7 +7,7 @@ use governor::middleware::NoOpMiddleware;
 pub fn layer() -> GovernorLayer<PeerIpKeyExtractor, NoOpMiddleware> {
     let cfg = GovernorConfigBuilder::default()
         .per_second(1)
-        .burst_size(100)
+        .burst_size(200)
         .finish()
         .expect("构建 GovernorConfig 失败");
     GovernorLayer { config: Arc::new(cfg) }
