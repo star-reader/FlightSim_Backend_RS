@@ -14,8 +14,6 @@ mod models;
 mod polling;
 mod state;
 
-// AppState 迁移至 state 模块
-
 async fn health() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"code":200, "data": {"status":"ok"}}))
 }
