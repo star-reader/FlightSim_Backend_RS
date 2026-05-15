@@ -1,7 +1,10 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{OriginalUri, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
 use axum::response::IntoResponse;
@@ -12,13 +15,41 @@ use ring::signature::{RSA_PSS_2048_8192_SHA256, UnparsedPublicKey};
 use crate::api::types::ApiErr;
 use crate::state::AppState;
 
+const SIGNATURE_WINDOW_SECONDS: i64 = 60;
+
+#[derive(Debug, Default)]
+pub struct ReplayCache {
+    seen: HashMap<String, i64>,
+}
+
+impl ReplayCache {
+    fn check_and_record(&mut self, key: String, now: i64) -> bool {
+        self.purge_expired(now);
+        if self.seen.contains_key(&key) {
+            return false;
+        }
+
+        self.seen.insert(key, now + SIGNATURE_WINDOW_SECONDS);
+        true
+    }
+
+    fn purge_expired(&mut self, now: i64) {
+        self.seen.retain(|_, expires_at| *expires_at >= now);
+    }
+}
+
 pub async fn authorize(
     State(state): State<AppState>,
     req: axum::http::Request<axum::body::Body>,
     next: Next,
 ) -> Result<axum::response::Response, axum::response::Response> {
     let headers = req.headers();
-    let path = req.uri().path().to_string();
+    let path = req
+        .extensions()
+        .get::<OriginalUri>()
+        .map(|uri| uri.0.path())
+        .unwrap_or_else(|| req.uri().path())
+        .to_string();
     //path|id|timestamp
     match verify_request(&state, &path, headers) {
         Ok(_) => Ok(next.run(req).await),
@@ -63,7 +94,7 @@ fn verify_request(
             )
         })?
         .as_secs() as i64;
-    if (now - timestamp).abs() > 60 {
+    if (now - timestamp).abs() > SIGNATURE_WINDOW_SECONDS {
         return Err((StatusCode::UNAUTHORIZED, "签名已过期或过早".to_string()));
     }
 
@@ -77,5 +108,17 @@ fn verify_request(
     public_key
         .verify(message.as_bytes(), &signature)
         .map_err(|_| (StatusCode::UNAUTHORIZED, "RSA-PSS 验证失败".to_string()))?;
+
+    let replay_key = format!("{path}|{id}|{timestamp}|{sig_b64}");
+    let mut replay_cache = state.replay_cache.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "防重放缓存不可用".to_string(),
+        )
+    })?;
+    if !replay_cache.check_and_record(replay_key, now) {
+        return Err((StatusCode::UNAUTHORIZED, "请求已被使用".to_string()));
+    }
+
     Ok(())
 }

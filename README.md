@@ -25,6 +25,7 @@ FlightSim Backend for SyncSeeker by Rust (public version)
 | RSA_PUBLIC_KEY        | PEM 格式的 RSA 公钥，用于签名验证 | 必填               |
 | BIND_ADDR             | 监听地址                          | `127.0.0.1:3000` |
 | POLL_INTERVAL_SECONDS | 向上游轮询间隔                    | 15                 |
+| RATE_LIMIT_PROFILE    | 限流策略，可选 `public`/`internal` | `public`           |
 
 ## 签名验证
 
@@ -32,7 +33,7 @@ FlightSim Backend for SyncSeeker by Rust (public version)
 
 - Header `x-id`: 请求方唯一标识
 - Header `x-timestamp`: Unix 时间戳（秒）
-- Header `x-signature`: RSA-PSS 对「id + timestamp」的签名（Base64）
+- Header `x-signature`: RSA-PSS 对「path + id + timestamp」的签名（Base64），格式为 `path|id|timestamp`
 
 ## 协议
 
