@@ -1,5 +1,6 @@
 use std::{net::SocketAddr, sync::Arc};
 
+use arc_swap::ArcSwap;
 use axum::{Router, routing::get};
 use dotenvy::dotenv;
 use pem::parse as pem_parse;
@@ -18,7 +19,6 @@ async fn health() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"code":200, "data": {"status":"ok"}}))
 }
 
-
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -31,8 +31,7 @@ async fn main() {
         .unwrap_or_else(|_| "".to_string())
         .parse()
         .expect("BIND_ADDR 格式错误");
-    let external_api_url = std::env::var("EXTERNAL_API_URL")
-        .unwrap_or_else(|_| "".to_string());
+    let external_api_url = std::env::var("EXTERNAL_API_URL").unwrap_or_else(|_| "".to_string());
     let poll_interval_seconds: u64 = std::env::var("POLL_INTERVAL_SECONDS")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -45,7 +44,9 @@ async fn main() {
     let public_key_der = Arc::new(pem.contents);
 
     let state = state::AppState {
-        cache: Arc::new(tokio::sync::RwLock::new(models::OnlineData::default())),
+        cache: Arc::new(ArcSwap::from_pointee(
+            cache::online_data::OnlineCache::default(),
+        )),
         public_key_der,
         external_api_url: Arc::new(external_api_url.clone()),
         poll_interval_seconds,
@@ -55,8 +56,10 @@ async fn main() {
     let poll_state = state.clone();
     let _poll_handle = polling::task::spawn_polling(poll_state);
 
-    let protected = api::routes()
-        .layer(axum::middleware::from_fn_with_state(state.clone(), auth::handler::authorize));
+    let protected = api::routes().layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        auth::handler::authorize,
+    ));
     let cors = middleware::cors::cors_layer();
 
     let app = Router::new()
@@ -68,7 +71,12 @@ async fn main() {
 
     info!("Server listening on {}", bind_addr);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
-    if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await {
+    if let Err(e) = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    {
         error!("server error: {}", e);
     }
 }

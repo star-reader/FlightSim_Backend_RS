@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arc-swap"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a3a1fd6f75306b68087b831f025c712524bcb19aad54e557b1129cfa0a2b207"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1365,6 +1374,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 name = "sim_flight_backend"
 version = "0.1.0"
 dependencies = [
+ "arc-swap",
  "axum",
  "base64 0.21.7",
  "dotenvy",
