@@ -34,6 +34,9 @@ impl AppConfig {
             .and_then(|value| {
                 Url::parse(&value).map_err(|err| format!("EXTERNAL_API_URL is invalid: {err}"))
             })?;
+        if !matches!(external_api_url.scheme(), "http" | "https") {
+            return Err("EXTERNAL_API_URL must use http or https".to_string());
+        }
 
         let poll_interval_seconds = lookup("POLL_INTERVAL_SECONDS")
             .filter(|value| !value.trim().is_empty())
@@ -103,5 +106,17 @@ mod tests {
         .unwrap_err();
 
         assert!(err.contains("greater than 0"));
+    }
+
+    #[test]
+    fn rejects_non_http_external_api_url() {
+        let err = AppConfig::from_lookup(|key| match key {
+            "EXTERNAL_API_URL" => Some("file:///tmp/online.json".to_string()),
+            "RSA_PUBLIC_KEY" => Some(PUBLIC_KEY.to_string()),
+            _ => None,
+        })
+        .unwrap_err();
+
+        assert!(err.contains("http or https"));
     }
 }

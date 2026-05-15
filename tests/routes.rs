@@ -48,6 +48,20 @@ async fn protected_route_rejects_missing_auth_headers() {
 }
 
 #[tokio::test]
+async fn health_route_is_not_rate_limited() {
+    let app = build_app(test_state());
+
+    for _ in 0..80 {
+        let response = app
+            .clone()
+            .oneshot(request("/map/v2/health"))
+            .await
+            .unwrap();
+        assert_response_status(response, StatusCode::OK).await;
+    }
+}
+
+#[tokio::test]
 async fn online_list_returns_cached_data_with_valid_auth() {
     let state = test_state();
     update_cache(
@@ -74,6 +88,34 @@ async fn online_list_returns_cached_data_with_valid_auth() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let json: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["data"]["flights"][0]["callsign"], "CCA123");
+}
+
+#[tokio::test]
+async fn signature_covers_query_string() {
+    let app = build_app(test_state());
+    let timestamp = current_timestamp();
+
+    let accepted = app
+        .clone()
+        .oneshot(signed_request(
+            "/map/v2/online-list?scope=all",
+            "client-a",
+            &timestamp,
+        ))
+        .await
+        .unwrap();
+    let rejected = app
+        .oneshot(signed_request_with_signature(
+            "/map/v2/online-list?scope=all",
+            "client-b",
+            &timestamp,
+            &sign("/map/v2/online-list", "client-b", &timestamp),
+        ))
+        .await
+        .unwrap();
+
+    assert_response_status(accepted, StatusCode::OK).await;
+    assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]

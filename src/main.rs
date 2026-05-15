@@ -1,8 +1,7 @@
 use std::{error::Error, net::SocketAddr, sync::Arc};
 
 use dotenvy::dotenv;
-use pem::parse as pem_parse;
-use sim_flight_backend::{app, config::AppConfig, polling, state::AppState};
+use sim_flight_backend::{app, auth, config::AppConfig, polling, state::AppState};
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt};
 
@@ -16,10 +15,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 读取环境变量
     let config = AppConfig::from_env().map_err(|err| format!("配置错误: {err}"))?;
 
-    // 解析 PEM 为 DER
-    let pem =
-        pem_parse(config.public_key_pem).map_err(|err| format!("解析 RSA 公钥 PEM 失败: {err}"))?;
-    let public_key_der = Arc::new(pem.contents);
+    // 解析并校验 PEM 为 DER
+    let public_key_der = Arc::new(auth::handler::parse_rsa_public_key_pem(
+        &config.public_key_pem,
+    )?);
 
     let state = AppState::new(
         public_key_der,

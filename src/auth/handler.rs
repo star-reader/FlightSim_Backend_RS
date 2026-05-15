@@ -10,12 +10,14 @@ use axum::middleware::Next;
 use axum::response::IntoResponse;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use pem::parse as pem_parse;
 use ring::signature::{RSA_PSS_2048_8192_SHA256, UnparsedPublicKey};
 
 use crate::api::types::ApiErr;
 use crate::state::AppState;
 
 const SIGNATURE_WINDOW_SECONDS: i64 = 60;
+const RSA_PUBLIC_KEY_PEM_TAG: &str = "RSA PUBLIC KEY";
 
 #[derive(Debug, Default)]
 pub struct ReplayCache {
@@ -44,14 +46,16 @@ pub async fn authorize(
     next: Next,
 ) -> Result<axum::response::Response, axum::response::Response> {
     let headers = req.headers();
-    let path = req
+    let signing_target = req
         .extensions()
         .get::<OriginalUri>()
-        .map(|uri| uri.0.path())
+        .and_then(|uri| uri.0.path_and_query())
+        .or_else(|| req.uri().path_and_query())
+        .map(|path_and_query| path_and_query.as_str())
         .unwrap_or_else(|| req.uri().path())
         .to_string();
-    //path|id|timestamp
-    match verify_request(&state, &path, headers) {
+    // path_and_query|id|timestamp
+    match verify_request(&state, &signing_target, headers) {
         Ok(_) => Ok(next.run(req).await),
         Err((status, msg)) => {
             let err = Json(ApiErr {
@@ -63,10 +67,22 @@ pub async fn authorize(
     }
 }
 
+pub fn parse_rsa_public_key_pem(public_key_pem: &str) -> Result<Vec<u8>, String> {
+    let pem = pem_parse(public_key_pem).map_err(|err| format!("解析 RSA 公钥 PEM 失败: {err}"))?;
+    if pem.tag != RSA_PUBLIC_KEY_PEM_TAG {
+        return Err(format!(
+            "RSA_PUBLIC_KEY 必须使用 PKCS#1 公钥格式（-----BEGIN RSA PUBLIC KEY-----），当前为 -----BEGIN {}-----",
+            pem.tag
+        ));
+    }
+
+    Ok(pem.contents)
+}
+
 // 验证函数：RSA-PSS (SHA-256)
 fn verify_request(
     state: &AppState,
-    path: &str,
+    signing_target: &str,
     headers: &HeaderMap,
 ) -> Result<(), (StatusCode, String)> {
     let id = headers
@@ -98,7 +114,7 @@ fn verify_request(
         return Err((StatusCode::UNAUTHORIZED, "签名已过期或过早".to_string()));
     }
 
-    let message = format!("{}|{}|{}", path, id, timestamp);
+    let message = format!("{}|{}|{}", signing_target, id, timestamp);
     let signature = BASE64_STANDARD
         .decode(sig_b64)
         .map_err(|_| (StatusCode::BAD_REQUEST, "签名 Base64 解码失败".to_string()))?;
@@ -109,7 +125,7 @@ fn verify_request(
         .verify(message.as_bytes(), &signature)
         .map_err(|_| (StatusCode::UNAUTHORIZED, "RSA-PSS 验证失败".to_string()))?;
 
-    let replay_key = format!("{path}|{id}|{timestamp}|{sig_b64}");
+    let replay_key = format!("{signing_target}|{id}|{timestamp}|{sig_b64}");
     let mut replay_cache = state.replay_cache.lock().map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -121,4 +137,25 @@ fn verify_request(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PKCS1_PUBLIC_KEY: &str =
+        "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAwQIDAQAB\n-----END RSA PUBLIC KEY-----";
+    const SPKI_PUBLIC_KEY: &str =
+        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----";
+
+    #[test]
+    fn accepts_pkcs1_rsa_public_key_pem() {
+        assert!(parse_rsa_public_key_pem(PKCS1_PUBLIC_KEY).is_ok());
+    }
+
+    #[test]
+    fn rejects_spki_public_key_pem_with_clear_message() {
+        let err = parse_rsa_public_key_pem(SPKI_PUBLIC_KEY).unwrap_err();
+        assert!(err.contains("BEGIN RSA PUBLIC KEY"));
+    }
 }

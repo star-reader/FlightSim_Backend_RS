@@ -22,7 +22,7 @@ FlightSim Backend for SyncSeeker by Rust (public version)
 | 变量                  | 说明                              | 默认值             |
 | --------------------- | --------------------------------- | ------------------ |
 | EXTERNAL_API_URL      | FSD 在线数据接口地址              | 必填               |
-| RSA_PUBLIC_KEY        | PEM 格式的 RSA 公钥，用于签名验证 | 必填               |
+| RSA_PUBLIC_KEY        | PKCS#1 PEM 格式的 RSA 公钥，用于签名验证，必须以 `-----BEGIN RSA PUBLIC KEY-----` 开头 | 必填               |
 | BIND_ADDR             | 监听地址                          | `127.0.0.1:3000` |
 | POLL_INTERVAL_SECONDS | 向上游轮询间隔                    | 15                 |
 | RATE_LIMIT_PROFILE    | 限流策略，可选 `public`/`internal` | `public`           |
@@ -33,7 +33,7 @@ FlightSim Backend for SyncSeeker by Rust (public version)
 
 - Header `x-id`: 请求方唯一标识
 - Header `x-timestamp`: Unix 时间戳（秒）
-- Header `x-signature`: RSA-PSS 对「path + id + timestamp」的签名（Base64），格式为 `path|id|timestamp`
+- Header `x-signature`: RSA-PSS 对「path_and_query + id + timestamp」的签名（Base64），格式为 `path_and_query|id|timestamp`，例如 `/map/v2/online-list?foo=bar|client-a|1778860701`
 
 ## 协议
 
