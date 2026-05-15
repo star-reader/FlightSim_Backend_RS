@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::{OnlineController, OnlinePilot};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct OnlineData {

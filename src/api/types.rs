@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::FlightPlan;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct ApiOk<T> {

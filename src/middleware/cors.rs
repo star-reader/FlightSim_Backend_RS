@@ -1,5 +1,5 @@
-use tower_http::cors::{Any, CorsLayer};
 use axum::http::HeaderName;
+use tower_http::cors::{Any, CorsLayer};
 
 pub fn cors_layer() -> CorsLayer {
     CorsLayer::new()

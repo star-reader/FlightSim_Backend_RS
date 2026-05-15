@@ -12,13 +12,12 @@ pub async fn controller_detail(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiErr>)> {
-    let data = state.cache.read().await.clone();
-    if let Some(c) = data
-        .controllers
-        .into_iter()
-        .find(|c| c.base.cid == id || c.base.session_id == id)
-    {
-        Ok(Json(ApiOk { code: 200, data: c }))
+    let snapshot = state.cache.load();
+    if let Some(c) = snapshot.controller_by_id(&id) {
+        Ok(Json(ApiOk {
+            code: 200,
+            data: c.clone(),
+        }))
     } else {
         Err((
             StatusCode::NOT_FOUND,

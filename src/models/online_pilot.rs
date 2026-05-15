@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::{BaseUser, FlightPlan};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OnlinePilot {

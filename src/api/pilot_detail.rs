@@ -7,18 +7,16 @@ use axum::{
     response::IntoResponse,
 };
 
-
 pub async fn pilot_detail(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiErr>)> {
-    let data = state.cache.read().await.clone();
-    if let Some(p) = data
-        .flights
-        .into_iter()
-        .find(|p| p.base.cid == id || p.base.session_id == id)
-    {
-        Ok(Json(ApiOk { code: 200, data: p }))
+    let snapshot = state.cache.load();
+    if let Some(p) = snapshot.pilot_by_id(&id) {
+        Ok(Json(ApiOk {
+            code: 200,
+            data: p.clone(),
+        }))
     } else {
         Err((
             StatusCode::NOT_FOUND,
@@ -34,13 +32,12 @@ pub async fn pilot_by_callsign(
     State(state): State<AppState>,
     Path(callsign): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiErr>)> {
-    let data = state.cache.read().await.clone();
-    if let Some(p) = data
-        .flights
-        .into_iter()
-        .find(|p| p.base.callsign.eq_ignore_ascii_case(&callsign))
-    {
-        Ok(Json(ApiOk { code: 200, data: p }))
+    let snapshot = state.cache.load();
+    if let Some(p) = snapshot.pilot_by_callsign(&callsign) {
+        Ok(Json(ApiOk {
+            code: 200,
+            data: p.clone(),
+        }))
     } else {
         Err((
             StatusCode::NOT_FOUND,
